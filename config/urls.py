@@ -16,36 +16,31 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import (
-    SpectacularAPIView,
-    SpectacularSwaggerView,
-)
-from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.routers import DefaultRouter
 
 from catalogo.views import (
     AreaEntregaViewSet,
+    ApiTokenView,
     CategoriaViewSet,
+    NomeViewSet,
+    PedidoViewSet,
     ProdutoViewSet,
     home,
     municipios_por_estado,
 )
 
 router = DefaultRouter()
+router.register("nome", NomeViewSet, basename="nome")
 router.register("categorias", CategoriaViewSet, basename="categoria")
 router.register("produtos", ProdutoViewSet, basename="produto")
 router.register("areas-entrega", AreaEntregaViewSet, basename="area-entrega")
+router.register("pedidos", PedidoViewSet, basename="pedido")
 
 urlpatterns = [
+    path("", home, name="home"),
     path("admin/", admin.site.urls),
     path("home/", home),
-    path("api/token/", obtain_auth_token, name="api_token_auth"),
+    path("api/token/", ApiTokenView.as_view(), name="api_token_auth"),
     path("api/municipios/", municipios_por_estado, name="municipios_por_estado"),
-    path("api/schema/", SpectacularAPIView.as_view(), name="api_schema"),
-    path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="api_schema"),
-        name="api_docs",
-    ),
     path("api/", include(router.urls)),
 ]

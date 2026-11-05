@@ -1,11 +1,12 @@
-from django.http import HttpResponse
+from django.shortcuts import render
 from rest_framework import status
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.authtoken.views import ObtainAuthToken
 
 from .ibge import (
     IBGEInvalidResponse,
@@ -13,49 +14,41 @@ from .ibge import (
     IBGE_UFS,
     buscar_municipios,
 )
-from .models import AreaEntrega, Categoria, Produto
+from .models import AreaEntrega, Categoria, Nome, Pedido, Produto
 from .serializers import (
     AreaEntregaSerializer,
     CategoriaSerializer,
+    NomeSerializer,
+    PedidoSerializer,
     ProdutoSerializer,
+    ApiTokenSerializer,
 )
+from .permissions import ClienteSemAcessoApi
 
 
 def home(request):
-    return HttpResponse("Bem-vindoo!")
+    categorias = Categoria.objects.filter(ativa=True)
+    produtos = Produto.objects.filter(
+        disponivel=True,
+        categoria__ativa=True,
+    ).select_related("categoria")
+    areas_entrega = AreaEntrega.objects.all()
+
+    return render(
+        request,
+        "catalogo/home.html",
+        {
+            "categorias": categorias,
+            "produtos": produtos,
+            "areas_entrega": areas_entrega,
+        },
+    )
 
 
-class MunicipioSerializer(serializers.Serializer):
-    codigo_ibge = serializers.IntegerField()
-    nome = serializers.CharField()
+class ApiTokenView(ObtainAuthToken):
+    serializer_class = ApiTokenSerializer
 
 
-class MunicipiosResponseSerializer(serializers.Serializer):
-    uf = serializers.CharField()
-    total = serializers.IntegerField()
-    municipios = MunicipioSerializer(many=True)
-
-
-class ErroMunicipiosSerializer(serializers.Serializer):
-    erro = serializers.CharField()
-
-
-@extend_schema(
-    parameters=[
-        OpenApiParameter(
-            name="uf",
-            type=str,
-            location=OpenApiParameter.QUERY,
-            required=True,
-            description="Sigla da unidade federativa, por exemplo PE.",
-        )
-    ],
-    responses={
-        200: MunicipiosResponseSerializer,
-        400: ErroMunicipiosSerializer,
-        503: ErroMunicipiosSerializer,
-    },
-)
 @api_view(["GET"])
 def municipios_por_estado(request):
     uf = request.query_params.get("uf", "").strip().upper()
@@ -155,3 +148,29 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 class AreaEntregaViewSet(viewsets.ModelViewSet):
     queryset = AreaEntrega.objects.all()
     serializer_class = AreaEntregaSerializer
+
+
+class NomeViewSet(viewsets.ModelViewSet):
+    queryset = Nome.objects.all()
+    serializer_class = NomeSerializer
+
+
+class PedidoViewSet(viewsets.ModelViewSet):
+    serializer_class = PedidoSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = Pedido.objects.select_related(
+            "usuario",
+            "area_entrega",
+        ).prefetch_related("itens__produto")
+        if self.request.user.is_staff:
+            return queryset
+        return queryset.filter(usuario=self.request.user)
+
+    def get_permissions(self):
+        if self.action in {"update", "partial_update", "destroy"}:
+            permission_classes = [ClienteSemAcessoApi, IsAdminUser]
+        else:
+            permission_classes = [ClienteSemAcessoApi, IsAuthenticated]
+        return [permission() for permission in permission_classes]

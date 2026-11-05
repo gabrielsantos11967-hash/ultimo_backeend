@@ -1,14 +1,23 @@
+from io import StringIO
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib import admin
 from django.core.cache import cache
-from django.test import TestCase
+from django.core.management import call_command
+from django.test import TestCase, override_settings
 from django.urls import reverse
-from unittest.mock import patch
 from rest_framework.authtoken.models import Token
 from rest_framework.exceptions import APIException
 from rest_framework.test import APIClient
 
-from .models import AreaEntrega, Categoria, Produto
+from .models import (
+    AreaEntrega,
+    Categoria,
+    Nome,
+    Pedido,
+    Produto,
+)
 from .serializers import AreaEntregaSerializer
 
 
@@ -21,6 +30,33 @@ class CardapioApiTests(TestCase):
             nome="X-Burguer",
             preco="18.50",
         )
+
+    def test_pagina_inicial_exibe_dados_salvos_do_cardapio(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lanchonete do Bairro")
+        self.assertContains(response, "Lanches")
+        self.assertContains(response, "X-Burguer")
+        self.assertContains(response, "18,50")
+        self.assertContains(response, area.municipio)
+        self.assertContains(response, str(area.codigo_ibge))
+
+    def test_pagina_inicial_oculta_produtos_indisponiveis(self):
+        self.produto.disponivel = False
+        self.produto.save()
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "X-Burguer")
+        self.assertContains(response, "Nenhum produto disponível cadastrado.")
 
     def test_lista_categorias_ativas_em_json(self):
         response = self.client.get(reverse("categoria-list"))
@@ -95,7 +131,7 @@ class CardapioApiTests(TestCase):
     def test_token_autentica_usuario_para_criar_produto(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(
-            username="cliente",
+            username="gabriel",
             password="test-password",
         )
         token = Token.objects.create(user=user)
@@ -272,10 +308,12 @@ class CardapioApiTests(TestCase):
             ["X-Burguer"],
         )
 
-    def test_documentacao_swagger_disponivel(self):
-        response = self.client.get(reverse("api_docs"))
+    def test_interface_navegavel_do_drf_disponivel(self):
+        response = self.client.get(reverse("api-root"))
 
         self.assertEqual(response.status_code, 200)
+        self.assertIn("categorias", response.json())
+        self.assertIn("produtos", response.json())
 
     @patch("catalogo.views.buscar_municipios")
     def test_lista_municipios_do_estado(self, buscar_municipios_mock):
@@ -412,6 +450,270 @@ class CardapioApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("token", response.json())
 
+    @override_settings(DEBUG=True)
+    def test_cliente_nao_pode_obter_token_nem_acessar_recursos_da_api(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "GABRIEL_ADMIN_PASSWORD": "123",
+                "CLIENTE_ADMIN_PASSWORD": "cliente",
+            },
+        ):
+            call_command("configurar_usuarios", stdout=StringIO())
+        gabriel = get_user_model().objects.get(username="gabriel")
+        self.assertTrue(gabriel.is_superuser)
+
+        response = self.client.post(
+            reverse("api_token_auth"),
+            {"username": "gabriel", "password": "123"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Token {response.json()['token']}"
+        )
+        response = self.client.get(reverse("produto-list"))
+        self.assertEqual(response.status_code, 200)
+
+        self.client.credentials()
+        cliente = get_user_model().objects.get(username="cliente")
+        self.assertTrue(cliente.is_staff)
+        self.assertFalse(cliente.is_superuser)
+        token = Token.objects.create(user=cliente)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {token.key}")
+
+        response = self.client.get(reverse("produto-list"))
+        self.assertEqual(response.status_code, 403)
+
+        self.client.credentials()
+        self.client.force_login(cliente)
+        response = self.client.get(reverse("produto-list"))
+        self.assertEqual(response.status_code, 403)
+
+        self.client.logout()
+        response = self.client.post(
+            reverse("api_token_auth"),
+            {"username": "cliente", "password": "cliente"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("token", response.json())
+
+    def test_lista_nomes_pelo_endpoint_nome(self):
+        nome = Nome.objects.create(nome="Ana")
+
+        response = self.client.get(reverse("nome-list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["results"], [
+            {"id": nome.id, "nome": "Ana"}
+        ])
+
+    def test_cria_detalha_atualiza_e_exclui_nome(self):
+        usuario = get_user_model().objects.create_user(
+            username="nome-editor",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=usuario)
+
+        response = self.client.post(
+            reverse("nome-list"),
+            {"nome": "Bruno"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 201)
+        nome_id = response.json()["id"]
+        detalhe = reverse("nome-detail", kwargs={"pk": nome_id})
+
+        response = self.client.get(detalhe)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"id": nome_id, "nome": "Bruno"})
+
+        response = self.client.put(
+            detalhe,
+            {"nome": "Bruno Silva"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["nome"], "Bruno Silva")
+
+        response = self.client.patch(
+            detalhe,
+            {"nome": "Bruno Souza"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["nome"], "Bruno Souza")
+
+        response = self.client.delete(detalhe)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Nome.objects.filter(pk=nome_id).exists())
+
+    def test_criar_nome_exige_autenticacao(self):
+        response = self.client.post(
+            reverse("nome-list"),
+            {"nome": "Carla"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_usuario_autenticado_cria_e_consulta_proprio_pedido(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-pedido",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=usuario)
+
+        response = self.client.post(
+            reverse("pedido-list"),
+            {
+                "cliente_nome": "Cliente de teste",
+                "telefone": "81999999999",
+                "endereco": "Rua Um, 10",
+                "area_entrega_id": area.pk,
+                "itens": [
+                    {"produto_id": self.produto.pk, "quantidade": 2},
+                ],
+                "taxa_entrega": "0.00",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201, response.data)
+        pedido_id = response.data["id"]
+        self.assertEqual(response.data["total"], "44.50")
+        self.assertEqual(response.data["taxa_entrega"], "7.50")
+        self.assertEqual(response.data["itens"][0]["preco_unitario"], "18.50")
+        self.assertEqual(response.data["status"], Pedido.Status.PENDENTE)
+
+        response = self.client.get(reverse("pedido-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+
+        outro_usuario = get_user_model().objects.create_user(
+            username="outro-cliente",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=outro_usuario)
+        response = self.client.get(reverse("pedido-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 0)
+        self.assertFalse(
+            Pedido.objects.filter(
+                pk=pedido_id,
+                usuario=outro_usuario,
+            ).exists()
+        )
+
+    def test_pedido_exige_autenticacao(self):
+        response = self.client.get(reverse("pedido-list"))
+        self.assertEqual(response.status_code, 401)
+
+    def test_pedido_rejeita_lista_de_itens_vazia(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-sem-itens",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=usuario)
+
+        response = self.client.post(
+            reverse("pedido-list"),
+            {
+                "cliente_nome": "Cliente",
+                "telefone": "81999999999",
+                "endereco": "Rua Um, 10",
+                "area_entrega_id": area.pk,
+                "itens": [],
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("itens", response.data)
+
+    def test_pedido_so_pode_ser_alterado_por_admin(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        dono = get_user_model().objects.create_user(
+            username="dono-pedido",
+            password="test-password",
+        )
+        pedido = Pedido.objects.create(
+            usuario=dono,
+            cliente_nome="Cliente",
+            telefone="81999999999",
+            endereco="Rua Um, 10",
+            area_entrega=area,
+            taxa_entrega=area.taxa_entrega,
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-alteracao",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=dono)
+
+        response = self.client.patch(
+            reverse("pedido-detail", kwargs={"pk": pedido.pk}),
+            {"status": Pedido.Status.CONCLUIDO},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.client.force_authenticate(user=usuario)
+        response = self.client.get(
+            reverse("pedido-detail", kwargs={"pk": pedido.pk})
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_staff_pode_alterar_status_do_pedido(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-status",
+            password="test-password",
+        )
+        pedido = Pedido.objects.create(
+            usuario=usuario,
+            cliente_nome="Cliente",
+            telefone="81999999999",
+            endereco="Rua Um, 10",
+            area_entrega=area,
+            taxa_entrega=area.taxa_entrega,
+        )
+        admin_user = get_user_model().objects.create_superuser(
+            username="staff-pedidos",
+            email="staff-pedidos@example.com",
+            password="test-password",
+        )
+        self.client.force_authenticate(user=admin_user)
+
+        response = self.client.patch(
+            reverse("pedido-detail", kwargs={"pk": pedido.pk}),
+            {"status": Pedido.Status.EM_PREPARO},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], Pedido.Status.EM_PREPARO)
+
 
 class CardapioAdminTests(TestCase):
     def setUp(self):
@@ -435,6 +737,44 @@ class CardapioAdminTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Administração da Lanchonete")
         self.assertContains(response, "Gerenciamento do cardápio")
+
+    @override_settings(DEBUG=True)
+    def test_usuario_cliente_pode_entrar_no_admin(self):
+        with patch.dict(
+            "os.environ",
+            {
+                "GABRIEL_ADMIN_PASSWORD": "123",
+                "CLIENTE_ADMIN_PASSWORD": "cliente",
+            },
+        ):
+            call_command("configurar_usuarios", stdout=StringIO())
+
+        self.client.logout()
+        self.assertTrue(self.client.login(username="cliente", password="cliente"))
+        response = self.client.get(reverse("admin:index"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Administração da Lanchonete")
+        for label in (
+            "Áreas de entrega",
+            "Categorias",
+            "Nomes",
+            "Pedidos",
+            "Produtos",
+        ):
+            self.assertContains(response, label)
+
+        for model_name in (
+            "areaentrega",
+            "categoria",
+            "nome",
+            "pedido",
+            "produto",
+        ):
+            add_response = self.client.get(
+                reverse(f"admin:catalogo_{model_name}_add")
+            )
+            self.assertEqual(add_response.status_code, 200)
 
     def test_listagem_de_categorias_exibe_contagem_de_produtos(self):
         response = self.client.get(
