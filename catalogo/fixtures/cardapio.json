@@ -1,0 +1,158 @@
+[
+{
+  "model": "catalogo.categoria",
+  "pk": 1,
+  "fields": {
+    "nome": "Lanches",
+    "descricao": "Hamburgueres e sanduiches",
+    "ativa": true
+  }
+},
+{
+  "model": "catalogo.categoria",
+  "pk": 2,
+  "fields": {
+    "nome": "Bebidas",
+    "descricao": "Bebidas geladas e sucos",
+    "ativa": true
+  }
+},
+{
+  "model": "catalogo.categoria",
+  "pk": 3,
+  "fields": {
+    "nome": "Porcoes",
+    "descricao": "Porcoes para compartilhar",
+    "ativa": true
+  }
+},
+{
+  "model": "catalogo.categoria",
+  "pk": 4,
+  "fields": {
+    "nome": "gabriel",
+    "descricao": "teste",
+    "ativa": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 1,
+  "fields": {
+    "categoria": 1,
+    "nome": "X-Burguer",
+    "preco": "18.50",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 2,
+  "fields": {
+    "categoria": 1,
+    "nome": "X-Salada",
+    "preco": "20.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 3,
+  "fields": {
+    "categoria": 1,
+    "nome": "X-Bacon",
+    "preco": "24.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 4,
+  "fields": {
+    "categoria": 1,
+    "nome": "Hot Dog",
+    "preco": "16.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 5,
+  "fields": {
+    "categoria": 1,
+    "nome": "Misto Quente",
+    "preco": "13.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 6,
+  "fields": {
+    "categoria": 2,
+    "nome": "Refrigerante Lata",
+    "preco": "6.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 7,
+  "fields": {
+    "categoria": 2,
+    "nome": "Suco Natural",
+    "preco": "9.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 8,
+  "fields": {
+    "categoria": 2,
+    "nome": "Agua Mineral",
+    "preco": "4.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 9,
+  "fields": {
+    "categoria": 3,
+    "nome": "Batata Frita",
+    "preco": "22.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 10,
+  "fields": {
+    "categoria": 3,
+    "nome": "Onion Rings",
+    "preco": "25.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 11,
+  "fields": {
+    "categoria": 4,
+    "nome": "cuscus",
+    "preco": "10.00",
+    "disponivel": true
+  }
+},
+{
+  "model": "catalogo.produto",
+  "pk": 12,
+  "fields": {
+    "categoria": 4,
+    "nome": "gabriel",
+    "preco": "100.00",
+    "disponivel": true
+  }
+}
+]
