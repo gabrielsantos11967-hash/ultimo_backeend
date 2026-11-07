@@ -2,11 +2,46 @@
 
 **Autor:** Gabriel Santos Ferreira de Andrade
 
-Este projeto é uma aplicação Django para organizar o cardápio de uma
-lanchonete. O painel administrativo permite cadastrar categorias, produtos,
-áreas de entrega e registros de nomes. A API REST disponibiliza operações de
-consulta e manutenção desses dados, autenticação por token e consulta dos
-municípios brasileiros na API pública do IBGE.
+Este projeto é uma aplicação Django para organizar o cardápio e os pedidos de
+uma lanchonete. O painel administrativo é destinado à equipe; os clientes
+utilizam a API e só acessam os pedidos associados às próprias contas.
+
+## Funcionalidades implementadas
+
+- **API do catálogo:** endpoints REST para categorias e produtos, com operações
+  CRUD. As consultas do cardápio são públicas; alterações exigem uma conta da
+  equipe.
+- **Consulta de produtos:** filtro por disponibilidade e categoria, busca por
+  nome, paginação e nome da categoria incluído na resposta do produto. O
+  endpoint `/api/categorias/{id}/produtos/` lista os produtos de uma categoria.
+- **Pedidos e acesso por cliente:** clientes autenticados podem criar e
+  gerenciar os próprios pedidos. As views filtram os pedidos usando
+  `request.user`, inclusive na consulta por ID; a API define o proprietário no
+  momento da criação e não permite escolher outra conta. Só a equipe pode ver
+  pedidos de todos os usuários ou alterar seu status.
+- **Autenticação e administração:** a API aceita token ou sessão. A conta
+  `gabriel`, configurada pelo comando `configurar_usuarios`, tem acesso total ao
+  Django Admin; contas comuns de clientes não acessam o Admin nem alteram o
+  catálogo.
+- **Áreas de entrega e IBGE:** o model `AreaEntrega` guarda município, código
+  IBGE e taxa. O serializer verifica o código no serviço do IBGE. O endpoint
+  `GET /api/municipios/?uf=PE` devolve o total e, para cada município, somente
+  `codigo_ibge` e `nome`.
+- **Validações:** o preço de produto não pode ser negativo; um pedido novo
+  sempre começa pendente, calcula preços e taxa com os dados do banco e exige
+  ao menos um item.
+- **Django Admin:** categorias e produtos têm cadastro administrativo; produtos
+  podem ser editados na tela da categoria. A listagem de produtos oferece
+  filtros, busca, edição direta da disponibilidade e a ação “Marcar como
+  indisponível”. O cabeçalho do painel é personalizado.
+- **Dados de exemplo e testes:** `catalogo/fixtures/cardapio.json` pode ser
+  carregado com `loaddata`. Os testes cobrem CRUD, permissões, isolamento de
+  pedidos, filtros, paginação, validações, integração com o IBGE e Admin.
+
+**Observações:** o app Django deste projeto se chama `catalogo` (não
+`cardapio`). Os registros de compras são modelados como pedidos; não há model
+ou endpoint de faturas. A interface navegável do DRF está disponível em
+`/api/`; drf-spectacular e documentação Swagger não estão configurados.
 
 ## Tecnologias utilizadas
 
