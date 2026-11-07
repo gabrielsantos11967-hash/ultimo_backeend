@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 from rest_framework import status
 from rest_framework import serializers, viewsets
@@ -17,7 +18,14 @@ from .ibge import (
     IBGE_UFS,
     buscar_municipios,
 )
-from .models import AreaEntrega, Categoria, Nome, Pedido, Produto
+from .models import (
+    TAXA_ENTREGA_PADRAO,
+    AreaEntrega,
+    Categoria,
+    Nome,
+    Pedido,
+    Produto,
+)
 from .serializers import (
     AreaEntregaSerializer,
     CategoriaSerializer,
@@ -34,7 +42,7 @@ def home(request):
         disponivel=True,
         categoria__ativa=True,
     ).select_related("categoria")
-    areas_entrega = AreaEntrega.objects.all()
+    areas_entrega = AreaEntrega.objects.order_by("municipio")
 
     context = {
         "categorias": categorias,
@@ -80,7 +88,7 @@ def home(request):
                 request,
                 f"Pedido #{pedido.pk} enviado! Total: R$ {pedido.total:.2f}.",
             )
-            return redirect("home")
+            return redirect("meus_pedidos")
 
         context["order_errors"] = [
             f"{field}: {', '.join(str(error) for error in errors)}"
@@ -88,6 +96,16 @@ def home(request):
         ]
 
     return render(request, "catalogo/home.html", context)
+
+
+@login_required
+def meus_pedidos(request):
+    pedidos = (
+        Pedido.objects.filter(usuario=request.user)
+        .select_related("area_entrega")
+        .prefetch_related("itens__produto")
+    )
+    return render(request, "catalogo/meus_pedidos.html", {"pedidos": pedidos})
 
 
 def cadastro_cliente(request):

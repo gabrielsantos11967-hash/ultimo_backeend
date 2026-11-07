@@ -58,6 +58,90 @@ class CardapioApiTests(TestCase):
         self.assertNotContains(response, "X-Burguer")
         self.assertContains(response, "Nenhum produto disponível cadastrado.")
 
+    def test_cliente_pode_buscar_municipio_atendido_no_pedido(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-busca-municipio",
+            ******,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="buscar-municipio"')
+        self.assertContains(response, 'name="area_entrega_id"')
+        self.assertContains(response, "Taxa fixa de entrega")
+        self.assertContains(response, "R$ 10,00")
+        self.assertNotContains(response, "R$ 5,00")
+        self.assertNotContains(response, "R$ 15,00")
+        self.assertNotContains(response, 'name="taxa_entrega"')
+        self.assertContains(response, area.municipio)
+        self.assertContains(response, f'value="{area.pk}"')
+
+    def test_pagina_inicial_mantem_pedidos_fora_da_lista_de_produtos(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="10.00",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-pedidos-recentes",
+            ******,
+        )
+        outro_usuario = get_user_model().objects.create_user(
+            username="outro-cliente-pedidos-recentes",
+            ******,
+        )
+        pedido = Pedido.objects.create(
+            usuario=usuario,
+            cliente_nome="Pedido recente do cliente",
+            telefone="81999999999",
+            endereco="Rua Um, 10",
+            area_entrega=area,
+            taxa_entrega="10.00",
+        )
+        Pedido.objects.create(
+            usuario=outro_usuario,
+            cliente_nome="Pedido privado de outra pessoa",
+            telefone="81988887777",
+            endereco="Rua Dois, 20",
+            area_entrega=area,
+            taxa_entrega="10.00",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Pedidos que você já fez")
+        self.assertNotContains(response, f"Pedido #{pedido.pk}")
+        self.assertNotContains(response, "Pedido privado de outra pessoa")
+        self.assertContains(response, "Ver meus pedidos")
+
+        response = self.client.get(reverse("meus_pedidos"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Pedido #{pedido.pk}")
+        self.assertNotContains(response, "Pedido privado de outra pessoa")
+
+    def test_pagina_inicial_nao_exibe_area_de_pedidos_vazia(self):
+        usuario = get_user_model().objects.create_user(
+            username="cliente-sem-pedidos-recentes",
+            ******,
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Você ainda não fez pedidos nesta conta.")
+        self.assertNotContains(response, "Pedidos que você já fez")
+        self.assertNotContains(response, "Pedido privado de outra pessoa")
+
     def test_cliente_pode_criar_conta_pelo_site(self):
         response = self.client.post(
             reverse("cadastro_cliente"),
@@ -92,15 +176,71 @@ class CardapioApiTests(TestCase):
                 "telefone": "81999999999",
                 "endereco": "Rua Um, 10",
                 "area_entrega_id": area.pk,
+                "taxa_entrega": "5.00",
                 "produto_id": [self.produto.pk],
                 f"quantidade_{self.produto.pk}": "2",
             },
         )
 
-        self.assertRedirects(response, reverse("home"))
+        self.assertRedirects(response, reverse("meus_pedidos"))
         pedido = Pedido.objects.get(usuario=usuario)
-        self.assertEqual(pedido.total, 44.50)
+        self.assertEqual(pedido.taxa_entrega, 10.00)
+        self.assertEqual(pedido.total, 47.00)
         self.assertEqual(pedido.itens.get().quantidade, 2)
+
+    def test_cliente_consulta_pedidos_com_itens_e_apenas_os_proprios(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-meus-pedidos",
+            ******,
+        )
+        outro_usuario = get_user_model().objects.create_user(
+            username="outro-cliente-pedidos",
+            ******,
+        )
+        self.client.force_login(usuario)
+        self.client.post(
+            reverse("home"),
+            {
+                "cliente_nome": "Cliente do site",
+                "telefone": "81999999999",
+                "endereco": "Rua Um, 10",
+                "area_entrega_id": area.pk,
+                "produto_id": [self.produto.pk],
+                f"quantidade_{self.produto.pk}": "2",
+            },
+        )
+        Pedido.objects.create(
+            usuario=outro_usuario,
+            cliente_nome="Pedido de outra pessoa",
+            telefone="81988887777",
+            endereco="Rua Dois, 20",
+            area_entrega=area,
+            taxa_entrega=area.taxa_entrega,
+        )
+
+        response = self.client.get(reverse("meus_pedidos"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Pedido #")
+        self.assertContains(response, "X-Burguer")
+        self.assertContains(response, "2")
+        self.assertContains(response, "Abreu e Lima")
+        self.assertContains(response, "R$ 47.00")
+        self.assertContains(response, "Pendente")
+        self.assertNotContains(response, "Pedido de outra pessoa")
+
+    def test_meus_pedidos_exige_login(self):
+        response = self.client.get(reverse("meus_pedidos"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('meus_pedidos')}",
+        )
 
     def test_cliente_precisa_escolher_produto_para_enviar_pedido_pelo_site(self):
         area = AreaEntrega.objects.create(
@@ -691,15 +831,15 @@ class CardapioApiTests(TestCase):
                 "itens": [
                     {"produto_id": self.produto.pk, "quantidade": 2},
                 ],
-                "taxa_entrega": "0.00",
+                "taxa_entrega": "5.00",
             },
             format="json",
         )
 
         self.assertEqual(response.status_code, 201, response.data)
         pedido_id = response.data["id"]
-        self.assertEqual(response.data["total"], "44.50")
-        self.assertEqual(response.data["taxa_entrega"], "7.50")
+        self.assertEqual(response.data["total"], "47.00")
+        self.assertEqual(response.data["taxa_entrega"], "10.00")
         self.assertEqual(response.data["itens"][0]["preco_unitario"], "18.50")
         self.assertEqual(response.data["status"], Pedido.Status.PENDENTE)
 

@@ -28,6 +28,7 @@ from catalogo.views import (
     ProdutoViewSet,
     cadastro_cliente,
     home,
+    meus_pedidos,
     municipios_por_estado,
 )
 
@@ -40,6 +41,7 @@ router.register("pedidos", PedidoViewSet, basename="pedido")
 
 urlpatterns = [
     path("", home, name="home"),
+    path("meus-pedidos/", meus_pedidos, name="meus_pedidos"),
     path("admin/", admin.site.urls),
     path("home/", home),
     path(

@@ -9,7 +9,15 @@ from .ibge import (
     IBGEUnavailable,
     codigo_municipio_existe,
 )
-from .models import AreaEntrega, Categoria, Nome, Pedido, PedidoItem, Produto
+from .models import (
+    TAXA_ENTREGA_PADRAO,
+    AreaEntrega,
+    Categoria,
+    Nome,
+    Pedido,
+    PedidoItem,
+    Produto,
+)
 
 
 class ApiTokenSerializer(AuthTokenSerializer):
@@ -133,6 +141,11 @@ class PedidoSerializer(serializers.ModelSerializer):
         source="area_entrega.municipio",
         read_only=True,
     )
+    taxa_entrega = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        read_only=True,
+    )
     usuario = serializers.PrimaryKeyRelatedField(read_only=True)
     total = serializers.DecimalField(
         max_digits=10,
@@ -198,11 +211,10 @@ class PedidoSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         itens_data = validated_data.pop("itens")
-        area_entrega = validated_data["area_entrega"]
         pedido = Pedido.objects.create(
             **validated_data,
             usuario=self.context["request"].user,
-            taxa_entrega=area_entrega.taxa_entrega,
+            taxa_entrega=TAXA_ENTREGA_PADRAO,
         )
         for item_data in itens_data:
             produto = item_data["produto"]
@@ -220,7 +232,6 @@ class PedidoSerializer(serializers.ModelSerializer):
         area_entrega = validated_data.get("area_entrega", instance.area_entrega)
         if "area_entrega" in validated_data:
             instance.area_entrega = area_entrega
-            instance.taxa_entrega = area_entrega.taxa_entrega
 
         for field, value in validated_data.items():
             setattr(instance, field, value)

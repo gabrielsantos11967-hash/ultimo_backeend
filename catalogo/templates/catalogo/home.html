@@ -7,61 +7,172 @@
     <style>
         :root {
             color-scheme: light;
-            font-family: Arial, sans-serif;
-            color: #242424;
-            background: #f5f5f2;
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            color: #2b211e;
+            background: #f7f4f1;
+            font-synthesis: none;
+            text-rendering: optimizeLegibility;
+            --brand: #963d2f;
+            --brand-dark: #713025;
+            --ink-muted: #746762;
+            --line: #e9dfd9;
+            --surface: #fff;
+            --surface-soft: #fbf8f6;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             margin: 0;
+            min-width: 320px;
+            line-height: 1.55;
         }
 
         header {
-            padding: 2rem max(1.25rem, calc((100% - 960px) / 2));
+            padding: 1.5rem max(1.25rem, calc((100% - 1120px) / 2)) 2rem;
             color: #fff;
-            background: #8b2f20;
+            background:
+                radial-gradient(ellipse at 85% 0%, #bd6850 0, transparent 38%),
+                linear-gradient(125deg, #713025, #963d2f 68%, #a34a37);
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: clamp(1.75rem, 4vw, 2.5rem);
+            letter-spacing: -0.04em;
+        }
+
+        header > p {
+            margin: 0.35rem 0 1.25rem;
+            color: #f7e8e1;
         }
 
         main {
-            max-width: 960px;
-            margin: 2rem auto;
-            padding: 0 1.25rem;
+            width: min(1120px, calc(100% - 2.5rem));
+            margin: 2rem auto 4rem;
         }
 
         section {
-            margin: 1.5rem 0;
-            padding: 1.25rem;
-            border-radius: 0.6rem;
-            background: #fff;
-            box-shadow: 0 2px 8px #0000000d;
+            margin: 1.25rem 0;
+            padding: clamp(1.1rem, 3vw, 1.75rem);
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            background: var(--surface);
+            box-shadow: 0 10px 30px #4c29140a, 0 2px 5px #4c291408;
         }
 
         h1, h2 {
             margin-top: 0;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        h2 {
+            margin-bottom: 1rem;
+            font-size: clamp(1.35rem, 3vw, 1.75rem);
+            letter-spacing: -0.025em;
         }
 
-        th, td {
-            padding: 0.75rem;
-            border-bottom: 1px solid #e5e5e5;
-            text-align: left;
+        h3, h4, h5 {
+            line-height: 1.3;
         }
 
-        th {
-            background: #faf6f2;
-        }
-
-        .empty {
-            color: #666;
+        nav {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.55rem 1rem;
         }
 
         nav a {
             color: inherit;
-            margin-right: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        nav a:hover {
+            text-decoration: underline;
+            text-underline-offset: 0.2em;
+        }
+
+        nav span {
+            color: #f7e8e1;
+        }
+
+        nav form button {
+            padding: 0.45rem 0.8rem;
+            border: 1px solid #ffffff80;
+            border-radius: 0.55rem;
+            color: #fff;
+            background: #ffffff12;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.85rem 0.9rem;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        th {
+            color: #5b453d;
+            background: var(--surface-soft);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.045em;
+            text-transform: uppercase;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        tbody tr:hover {
+            background: #fcfaf8;
+        }
+
+        input, select {
+            width: 100%;
+            max-width: 100%;
+            min-height: 2.7rem;
+            padding: 0.65rem 0.75rem;
+            border: 1px solid #d9cbc3;
+            border-radius: 0.55rem;
+            color: #2b211e;
+            background: #fff;
+            font: inherit;
+        }
+
+        input:focus, select:focus, button:focus-visible, a:focus-visible {
+            outline: 3px solid #d9876c80;
+            outline-offset: 2px;
+        }
+
+        input[type="checkbox"] {
+            width: 1.15rem;
+            min-height: 1.15rem;
+            accent-color: var(--brand);
+        }
+
+        input[type="number"] {
+            min-width: 5rem;
+        }
+
+        .empty {
+            color: var(--ink-muted);
+        }
+
+        .help-text {
+            color: var(--ink-muted);
+            font-size: 0.9rem;
         }
 
         .actions, .messages {
@@ -70,39 +181,73 @@
 
         .button {
             display: inline-block;
-            margin: 0.25rem;
-            padding: 0.7rem 1rem;
+            margin: 0.25rem 0.35rem 0.25rem 0;
+            padding: 0.72rem 1.05rem;
             border: 0;
-            border-radius: 0.35rem;
+            border-radius: 0.6rem;
             color: #fff;
-            background: #8b2f20;
+            background: var(--brand);
+            box-shadow: 0 3px 8px #71302524;
             text-decoration: none;
+            font: inherit;
+            font-weight: 700;
             cursor: pointer;
+            transition: background 150ms ease, transform 150ms ease;
         }
 
-        input, select {
-            max-width: 100%;
-            padding: 0.55rem;
+        .button:hover {
+            background: var(--brand-dark);
+            transform: translateY(-1px);
         }
 
         .customer-fields {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+            gap: 1rem 1.15rem;
+            margin-top: 1.25rem;
         }
 
         .customer-fields label {
             display: grid;
-            gap: 0.35rem;
+            align-content: start;
+            gap: 0.45rem;
+            color: #4a3933;
+            font-size: 0.92rem;
+            font-weight: 650;
         }
 
         .error {
-            color: #9b1c1c;
+            padding: 0.85rem 1rem;
+            border: 1px solid #efb8b2;
+            border-radius: 0.65rem;
+            color: #8e2822;
+            background: #fff4f2;
         }
 
-        @media (max-width: 600px) {
+        .messages {
+            padding: 0.25rem 1rem;
+            border-left: 4px solid var(--brand);
+            color: #51392f;
+            background: #fffaf6;
+        }
+
+        @media (max-width: 680px) {
+            main {
+                width: min(calc(100% - 1.25rem), 1120px);
+                margin-top: 1rem;
+            }
+
             section {
+                padding: 1rem;
                 overflow-x: auto;
+            }
+
+            table {
+                min-width: 600px;
+            }
+
+            nav {
+                gap: 0.7rem;
             }
         }
     </style>
@@ -116,6 +261,7 @@
             <a href="#produtos">Produtos</a>
             <a href="#entregas">Áreas de entrega</a>
             {% if user.is_authenticated %}
+                <a href="{% url 'meus_pedidos' %}">Ver meus pedidos</a>
                 <span>Olá, {{ user.username }}!</span>
                 <form method="post" action="{% url 'logout' %}" style="display:inline">
                     {% csrf_token %}
@@ -244,20 +390,41 @@
                                 <input name="endereco" required maxlength="255" value="{{ form_data.endereco }}">
                             </label>
                             <label>
-                                Área de entrega
-                                <select name="area_entrega_id" required>
+                                Buscar município
+                                <input
+                                    id="buscar-municipio"
+                                    type="search"
+                                    autocomplete="off"
+                                    aria-controls="area-entrega"
+                                    aria-describedby="municipio-ajuda"
+                                    aria-label="Buscar município"
+                                    placeholder="Digite o nome do município"
+                                >
+                            </label>
+                            <label>
+                                Entrega
+                                <select
+                                    id="area-entrega"
+                                    name="area_entrega_id"
+                                    required
+                                    aria-describedby="municipio-ajuda"
+                                >
                                     <option value="">Escolha seu município</option>
                                     {% for area in areas_entrega %}
                                         <option
                                             value="{{ area.id }}"
                                             {% if form_data.area_entrega_id == area.id|stringformat:"s" %}selected{% endif %}
                                         >
-                                            {{ area.municipio }} — taxa R$ {{ area.taxa_entrega }}
+                                            {{ area.municipio }}
                                         </option>
                                     {% endfor %}
                                 </select>
+                                <span id="municipio-ajuda" class="help-text">
+                                    Digite para filtrar e escolha um município atendido.
+                                </span>
                             </label>
                         </div>
+                        <p class="help-text">Taxa fixa de entrega: R$ 10,00 para qualquer município.</p>
                         <p><button class="button" type="submit">Enviar pedido</button></p>
                     </form>
                 {% else %}
@@ -297,7 +464,7 @@
                             <tr>
                                 <td>{{ area.municipio }}</td>
                                 <td>{{ area.codigo_ibge }}</td>
-                                <td>R$ {{ area.taxa_entrega }}</td>
+                                <td>R$ 10,00</td>
                             </tr>
                         {% endfor %}
                     </tbody>
@@ -308,6 +475,48 @@
         </section>
     </main>
     <script>
+        const municipalitySearch = document.getElementById("buscar-municipio");
+        const municipalitySelect = document.getElementById("area-entrega");
+        if (municipalitySearch && municipalitySelect) {
+            const placeholder = municipalitySelect.options[0].cloneNode(true);
+            const municipalityOptions = Array.from(municipalitySelect.options).slice(1);
+
+            const normalizeMunicipality = (value) =>
+                value
+                    .trim()
+                    .toLocaleLowerCase("pt-BR")
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "");
+
+            const filterMunicipalities = () => {
+                const searchTerm = normalizeMunicipality(municipalitySearch.value);
+                const matchingOptions = municipalityOptions.filter((option) =>
+                    normalizeMunicipality(option.textContent).includes(searchTerm)
+                );
+
+                municipalitySelect.replaceChildren(placeholder.cloneNode(true));
+                matchingOptions.forEach((option) => {
+                    municipalitySelect.add(option.cloneNode(true));
+                });
+                if (matchingOptions.length === 0) {
+                    const emptyOption = document.createElement("option");
+                    emptyOption.textContent = "Nenhum município encontrado";
+                    emptyOption.disabled = true;
+                    municipalitySelect.add(emptyOption);
+                }
+            };
+
+            municipalitySearch.addEventListener("input", filterMunicipalities);
+            municipalitySelect.addEventListener("focus", filterMunicipalities);
+            municipalitySearch.addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    filterMunicipalities();
+                    municipalitySelect.focus();
+                }
+            });
+        }
+
         const categoryFilter = document.getElementById("filtro-categoria");
         if (categoryFilter) {
             categoryFilter.addEventListener("change", () => {

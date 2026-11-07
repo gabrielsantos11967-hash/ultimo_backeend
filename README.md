@@ -20,7 +20,8 @@ utilizam a API e só acessam os pedidos associados às próprias contas.
   momento da criação e não permite escolher outra conta. Só a equipe pode ver
   pedidos de todos os usuários ou alterar seu status. O site permite que o
   cliente crie uma conta, entre, escolha produtos e área de entrega e envie o
-  pedido.
+  pedido. A página “Meus pedidos” mostra os produtos, quantidades, valores,
+  município e status dos pedidos da conta autenticada.
 - **Autenticação e administração:** a API aceita token ou sessão. A conta
   `gabriel`, configurada pelo comando `configurar_usuarios`, tem acesso total ao
   Django Admin; contas comuns de clientes não acessam o Admin nem alteram o
@@ -129,6 +130,7 @@ pressione `Ctrl+C` no terminal.
 
 - Interface navegável da API (DRF): http://127.0.0.1:8000/api/
 - Página inicial para escolher produtos e fazer pedidos: http://127.0.0.1:8000/
+- Meus pedidos (após entrar): http://127.0.0.1:8000/meus-pedidos/
 - Cadastro de cliente: http://127.0.0.1:8000/cadastro/
 - Login de cliente: http://127.0.0.1:8000/entrar/
 - Painel administrativo: http://127.0.0.1:8000/admin/
@@ -333,7 +335,7 @@ Criar uma área de entrega (`POST /api/areas-entrega/`):
 {
   "municipio": "Abreu e Lima",
   "codigo_ibge": 2600054,
-  "taxa_entrega": "7.50"
+  "taxa_entrega": "10.00"
 }
 ```
 
@@ -358,9 +360,14 @@ entrega previamente cadastrada:
 }
 ```
 
-O preço dos produtos e a taxa de entrega são obtidos do banco no momento da
-criação; o cliente não pode informar esses valores. A resposta inclui os itens,
-subtotal de cada item, total e status inicial `pendente`. Cada cliente consulta
+O preço dos produtos é obtido do banco no momento da criação; o cliente não
+pode informar esse valor. A taxa de entrega é fixa em R$ 10,00 para todos os
+municípios e não pode ser escolhida ou alterada pelo cliente.
+Recife, Olinda, Jaboatão dos Guararapes, Paulista e Camaragibe são adicionados
+como municípios atendidos pela migração `0008_municipios_entrega`. A resposta
+inclui a taxa fixa, os itens, subtotal de cada item, total e status inicial
+`pendente`. A migração `0009_taxa_entrega_fixa` atualiza para R$ 10,00 as taxas
+dos municípios e dos pedidos existentes. Cada cliente consulta
 e altera apenas os próprios pedidos. A view filtra também as consultas por ID,
 de modo que um pedido de outra conta não fica visível ao cliente. A equipe
 autenticada como funcionário pode consultar todos, atualizar status e gerenciar
@@ -375,7 +382,7 @@ Exemplo resumido de resposta:
   "telefone": "81999999999",
   "endereco": "Rua Um, 10",
   "municipio": "Abreu e Lima",
-  "taxa_entrega": "7.50",
+  "taxa_entrega": "10.00",
   "itens": [
     {
       "produto": 1,
@@ -385,7 +392,7 @@ Exemplo resumido de resposta:
       "subtotal": "37.00"
     }
   ],
-  "total": "44.50",
+  "total": "47.00",
   "status": "pendente"
 }
 ```

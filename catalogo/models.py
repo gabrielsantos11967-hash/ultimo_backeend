@@ -5,6 +5,9 @@ from django.db import models
 from django.core.validators import MinValueValidator
 
 
+TAXA_ENTREGA_PADRAO = Decimal("10.00")
+
+
 class Categoria(models.Model):
     nome = models.CharField(max_length=100, unique=True)
     descricao = models.TextField(blank=True)

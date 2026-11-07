@@ -3,6 +3,7 @@ from django.db.models import Count
 from django.forms.models import BaseInlineFormSet
 
 from .models import (
+    TAXA_ENTREGA_PADRAO,
     AreaEntrega,
     Categoria,
     Nome,
@@ -110,7 +111,7 @@ class PedidoAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if not change:
-            obj.taxa_entrega = obj.area_entrega.taxa_entrega
+            obj.taxa_entrega = TAXA_ENTREGA_PADRAO
         super().save_model(request, obj, form, change)
 
 
