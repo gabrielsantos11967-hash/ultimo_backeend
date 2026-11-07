@@ -18,7 +18,9 @@ utilizam a API e só acessam os pedidos associados às próprias contas.
   gerenciar os próprios pedidos. As views filtram os pedidos usando
   `request.user`, inclusive na consulta por ID; a API define o proprietário no
   momento da criação e não permite escolher outra conta. Só a equipe pode ver
-  pedidos de todos os usuários ou alterar seu status.
+  pedidos de todos os usuários ou alterar seu status. O site permite que o
+  cliente crie uma conta, entre, escolha produtos e área de entrega e envie o
+  pedido.
 - **Autenticação e administração:** a API aceita token ou sessão. A conta
   `gabriel`, configurada pelo comando `configurar_usuarios`, tem acesso total ao
   Django Admin; contas comuns de clientes não acessam o Admin nem alteram o
@@ -94,8 +96,8 @@ mostrá-la na tela:
 python manage.py configurar_usuarios
 ```
 
-Use `gabriel` para acesso total ao Admin e à API. Clientes devem ter contas
-comuns criadas pelo administrador; eles entram na API com token e só podem
+Use `gabriel` para acesso total ao Admin e à API. Clientes podem criar uma
+conta comum pelo site ou receber uma conta criada pela equipe; eles só podem
 consultar ou alterar os próprios pedidos. O catálogo pode ser consultado por
 todos, mas só usuários da equipe podem alterá-lo. Se existir, a conta chamada
 `cliente` será excluída; crie contas individuais para clientes que usarão a API.
@@ -126,7 +128,9 @@ pressione `Ctrl+C` no terminal.
 ## Acessos
 
 - Interface navegável da API (DRF): http://127.0.0.1:8000/api/
-- Página inicial com tabelas do cardápio: http://127.0.0.1:8000/
+- Página inicial para escolher produtos e fazer pedidos: http://127.0.0.1:8000/
+- Cadastro de cliente: http://127.0.0.1:8000/cadastro/
+- Login de cliente: http://127.0.0.1:8000/entrar/
 - Painel administrativo: http://127.0.0.1:8000/admin/
 - Consulta de municípios (exemplo): http://127.0.0.1:8000/api/municipios/?uf=PE
 

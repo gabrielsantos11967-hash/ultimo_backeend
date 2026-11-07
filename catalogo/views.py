@@ -1,4 +1,7 @@
-from django.shortcuts import render
+from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
+from django.shortcuts import redirect, render
 from rest_framework import status
 from rest_framework import serializers, viewsets
 from rest_framework.decorators import api_view
@@ -33,15 +36,75 @@ def home(request):
     ).select_related("categoria")
     areas_entrega = AreaEntrega.objects.all()
 
-    return render(
-        request,
-        "catalogo/home.html",
-        {
-            "categorias": categorias,
-            "produtos": produtos,
-            "areas_entrega": areas_entrega,
-        },
-    )
+    context = {
+        "categorias": categorias,
+        "produtos": produtos,
+        "areas_entrega": areas_entrega,
+        "order_errors": [],
+        "form_data": request.POST,
+        "selected_products": [
+            int(product_id)
+            for product_id in request.POST.getlist("produto_id")
+            if product_id.isdecimal()
+        ],
+    }
+
+    if request.method == "POST":
+        if not request.user.is_authenticated:
+            messages.error(request, "Entre na sua conta para enviar o pedido.")
+            return redirect("login")
+
+        pedido_data = {
+            "cliente_nome": request.POST.get("cliente_nome", ""),
+            "telefone": request.POST.get("telefone", ""),
+            "endereco": request.POST.get("endereco", ""),
+            "area_entrega_id": request.POST.get("area_entrega_id", ""),
+            "itens": [
+                {
+                    "produto_id": produto_id,
+                    "quantidade": request.POST.get(
+                        f"quantidade_{produto_id}",
+                        "",
+                    ),
+                }
+                for produto_id in request.POST.getlist("produto_id")
+            ],
+        }
+        serializer = PedidoSerializer(
+            data=pedido_data,
+            context={"request": request},
+        )
+        if serializer.is_valid():
+            pedido = serializer.save()
+            messages.success(
+                request,
+                f"Pedido #{pedido.pk} enviado! Total: R$ {pedido.total:.2f}.",
+            )
+            return redirect("home")
+
+        context["order_errors"] = [
+            f"{field}: {', '.join(str(error) for error in errors)}"
+            for field, errors in serializer.errors.items()
+        ]
+
+    return render(request, "catalogo/home.html", context)
+
+
+def cadastro_cliente(request):
+    if request.user.is_authenticated:
+        return redirect("home")
+
+    form = UserCreationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        usuario = form.save()
+        login(request, usuario)
+        messages.success(
+            request,
+            "Conta criada. Agora você já pode fazer seu pedido.",
+        )
+        return redirect("home")
+
+    return render(request, "catalogo/cadastro.html", {"form": form})
 
 
 class ApiTokenView(ObtainAuthToken):

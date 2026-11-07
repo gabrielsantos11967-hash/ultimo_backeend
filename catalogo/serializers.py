@@ -95,7 +95,10 @@ class NomeSerializer(serializers.ModelSerializer):
 class PedidoItemSerializer(serializers.ModelSerializer):
     produto_id = serializers.PrimaryKeyRelatedField(
         source="produto",
-        queryset=Produto.objects.filter(disponivel=True),
+        queryset=Produto.objects.filter(
+            disponivel=True,
+            categoria__ativa=True,
+        ),
         write_only=True,
     )
     produto = serializers.IntegerField(source="produto_id", read_only=True)

@@ -58,6 +58,76 @@ class CardapioApiTests(TestCase):
         self.assertNotContains(response, "X-Burguer")
         self.assertContains(response, "Nenhum produto disponível cadastrado.")
 
+    def test_cliente_pode_criar_conta_pelo_site(self):
+        response = self.client.post(
+            reverse("cadastro_cliente"),
+            {
+                "username": "cliente-novo",
+                "password1": "SenhaForte123!abc",
+                "password2": "SenhaForte123!abc",
+            },
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        usuario = get_user_model().objects.get(username="cliente-novo")
+        self.assertFalse(usuario.is_staff)
+        self.assertTrue("_auth_user_id" in self.client.session)
+
+    def test_cliente_autenticado_pode_fazer_pedido_pelo_site(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-site",
+            password="SenhaForte123!abc",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("home"),
+            {
+                "cliente_nome": "Cliente do site",
+                "telefone": "81999999999",
+                "endereco": "Rua Um, 10",
+                "area_entrega_id": area.pk,
+                "produto_id": [self.produto.pk],
+                f"quantidade_{self.produto.pk}": "2",
+            },
+        )
+
+        self.assertRedirects(response, reverse("home"))
+        pedido = Pedido.objects.get(usuario=usuario)
+        self.assertEqual(pedido.total, 44.50)
+        self.assertEqual(pedido.itens.get().quantidade, 2)
+
+    def test_cliente_precisa_escolher_produto_para_enviar_pedido_pelo_site(self):
+        area = AreaEntrega.objects.create(
+            municipio="Abreu e Lima",
+            codigo_ibge=2600054,
+            taxa_entrega="7.50",
+        )
+        usuario = get_user_model().objects.create_user(
+            username="cliente-sem-produto",
+            password="SenhaForte123!abc",
+        )
+        self.client.force_login(usuario)
+
+        response = self.client.post(
+            reverse("home"),
+            {
+                "cliente_nome": "Cliente",
+                "telefone": "81999999999",
+                "endereco": "Rua Um, 10",
+                "area_entrega_id": area.pk,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "O pedido precisa ter pelo menos um produto.")
+        self.assertFalse(Pedido.objects.filter(usuario=usuario).exists())
+
     def test_lista_categorias_ativas_em_json(self):
         response = self.client.get(reverse("categoria-list"))
 

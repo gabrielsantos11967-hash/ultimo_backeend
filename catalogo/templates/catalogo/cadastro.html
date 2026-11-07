@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Criar conta | Lanchonete do Bairro</title>
+    <style>
+        body { max-width: 520px; margin: 3rem auto; padding: 0 1rem; font-family: Arial, sans-serif; color: #242424; }
+        label { display: grid; gap: 0.35rem; margin: 1rem 0; }
+        input { padding: 0.65rem; }
+        button, .button { display: inline-block; padding: 0.7rem 1rem; border: 0; border-radius: 0.35rem; color: #fff; background: #8b2f20; text-decoration: none; cursor: pointer; }
+        .errorlist { color: #9b1c1c; }
+        .helptext { color: #666; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>Criar conta de cliente</h1>
+    <p>Depois de criar sua conta, você poderá escolher os produtos e fazer pedidos.</p>
+    <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+            <label>
+                {{ field.label }}
+                {{ field }}
+                {% if field.help_text %}<span class="helptext">{{ field.help_text|safe }}</span>{% endif %}
+                {{ field.errors }}
+            </label>
+        {% endfor %}
+        {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
+        <button type="submit">Criar conta</button>
+    </form>
+    <p>Já tem conta? <a href="{% url 'login' %}">Entrar</a></p>
+    <p><a href="{% url 'home' %}">Voltar ao cardápio</a></p>
+</body>
+</html>

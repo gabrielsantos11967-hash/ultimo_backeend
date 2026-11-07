@@ -64,6 +64,42 @@
             margin-right: 1rem;
         }
 
+        .actions, .messages {
+            margin: 1rem 0;
+        }
+
+        .button {
+            display: inline-block;
+            margin: 0.25rem;
+            padding: 0.7rem 1rem;
+            border: 0;
+            border-radius: 0.35rem;
+            color: #fff;
+            background: #8b2f20;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        input, select {
+            max-width: 100%;
+            padding: 0.55rem;
+        }
+
+        .customer-fields {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .customer-fields label {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .error {
+            color: #9b1c1c;
+        }
+
         @media (max-width: 600px) {
             section {
                 overflow-x: auto;
@@ -79,11 +115,28 @@
             <a href="#categorias">Categorias</a>
             <a href="#produtos">Produtos</a>
             <a href="#entregas">Áreas de entrega</a>
-            <a href="/api/">API</a>
+            {% if user.is_authenticated %}
+                <span>Olá, {{ user.username }}!</span>
+                <form method="post" action="{% url 'logout' %}" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit">Sair</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}">Entrar</a>
+                <a href="{% url 'cadastro_cliente' %}">Criar conta</a>
+            {% endif %}
         </nav>
     </header>
 
     <main>
+        {% if messages %}
+            <section class="messages" aria-live="polite">
+                {% for message in messages %}
+                    <p>{{ message }}</p>
+                {% endfor %}
+            </section>
+        {% endif %}
+
         <section id="categorias">
             <h2>Categorias</h2>
             {% if categorias %}
@@ -106,26 +159,123 @@
         </section>
 
         <section id="produtos">
-            <h2>Produtos disponíveis</h2>
+            <h2>Escolha seus produtos</h2>
+            {% if not user.is_authenticated %}
+                <p>Para montar e enviar um pedido, entre ou crie sua conta de cliente.</p>
+                <p class="actions">
+                    <a class="button" href="{% url 'login' %}">Entrar</a>
+                    <a class="button" href="{% url 'cadastro_cliente' %}">Criar conta</a>
+                </p>
+            {% endif %}
             {% if produtos %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Produto</th>
-                            <th>Categoria</th>
-                            <th>Preço</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for produto in produtos %}
-                            <tr>
-                                <td>{{ produto.nome }}</td>
-                                <td>{{ produto.categoria.nome }}</td>
-                                <td>R$ {{ produto.preco }}</td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'home' %}">
+                        {% csrf_token %}
+                        {% if order_errors %}
+                            <div class="error" role="alert">
+                                <p>Confira os dados do pedido:</p>
+                                <ul>
+                                    {% for error in order_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <label for="filtro-categoria">Filtrar por categoria:</label>
+                        <select id="filtro-categoria">
+                            <option value="">Todas</option>
+                            {% for categoria in categorias %}
+                                <option value="{{ categoria.id }}">{{ categoria.nome }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Escolher</th>
+                                    <th>Produto</th>
+                                    <th>Categoria</th>
+                                    <th>Preço</th>
+                                    <th>Quantidade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for produto in produtos %}
+                                    <tr data-categoria="{{ produto.categoria_id }}">
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                name="produto_id"
+                                                value="{{ produto.id }}"
+                                                aria-label="Escolher {{ produto.nome }}"
+                                                {% if produto.id in selected_products %}checked{% endif %}
+                                            >
+                                        </td>
+                                        <td>{{ produto.nome }}</td>
+                                        <td>{{ produto.categoria.nome }}</td>
+                                        <td>R$ {{ produto.preco }}</td>
+                                        <td>
+                                            <input
+                                                type="number"
+                                                name="quantidade_{{ produto.id }}"
+                                                value="1"
+                                                min="1"
+                                                aria-label="Quantidade de {{ produto.nome }}"
+                                            >
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <h3>Seus dados e entrega</h3>
+                        <div class="customer-fields">
+                            <label>
+                                Nome
+                                <input name="cliente_nome" required maxlength="150" value="{{ form_data.cliente_nome }}">
+                            </label>
+                            <label>
+                                Telefone
+                                <input name="telefone" required maxlength="30" value="{{ form_data.telefone }}">
+                            </label>
+                            <label>
+                                Endereço
+                                <input name="endereco" required maxlength="255" value="{{ form_data.endereco }}">
+                            </label>
+                            <label>
+                                Área de entrega
+                                <select name="area_entrega_id" required>
+                                    <option value="">Escolha seu município</option>
+                                    {% for area in areas_entrega %}
+                                        <option
+                                            value="{{ area.id }}"
+                                            {% if form_data.area_entrega_id == area.id|stringformat:"s" %}selected{% endif %}
+                                        >
+                                            {{ area.municipio }} — taxa R$ {{ area.taxa_entrega }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
+                        <p><button class="button" type="submit">Enviar pedido</button></p>
+                    </form>
+                {% else %}
+                    <table>
+                        <thead>
+                            <tr><th>Produto</th><th>Categoria</th><th>Preço</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for produto in produtos %}
+                                <tr>
+                                    <td>{{ produto.nome }}</td>
+                                    <td>{{ produto.categoria.nome }}</td>
+                                    <td>R$ {{ produto.preco }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
             {% else %}
                 <p class="empty">Nenhum produto disponível cadastrado.</p>
             {% endif %}
@@ -157,5 +307,16 @@
             {% endif %}
         </section>
     </main>
+    <script>
+        const categoryFilter = document.getElementById("filtro-categoria");
+        if (categoryFilter) {
+            categoryFilter.addEventListener("change", () => {
+                document.querySelectorAll("#produtos tbody tr[data-categoria]").forEach((row) => {
+                    row.hidden = categoryFilter.value !== "" &&
+                        row.dataset.categoria !== categoryFilter.value;
+                });
+            });
+        }
+    </script>
 </body>
 </html>
