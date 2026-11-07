@@ -52,20 +52,22 @@ python -m pip install -r requirements.txt
 python manage.py migrate
 ```
 
-Configure as duas contas locais. O comando solicitará as senhas sem mostrá-las
-na tela:
+Configure a conta administrativa local. O comando solicitará a senha sem
+mostrá-la na tela:
 
 ```powershell
 python manage.py configurar_usuarios
 ```
 
-Use `gabriel` para acesso total ao Admin e à API. Use `cliente` para cadastrar,
-consultar, alterar e excluir categorias, nomes, produtos, pedidos e áreas de
-entrega pelo Admin; essa conta não acessa a API. Usuários ficam disponíveis
-somente para consulta/seleção. O comando exige `DEBUG=True`, não deve ser
-executado em produção e redefine as senhas informadas sempre que for executado.
-As senhas fracas solicitadas são adequadas apenas para desenvolvimento local;
-troque-as antes de qualquer exposição à rede.
+Use `gabriel` para acesso total ao Admin e à API. Clientes devem ter contas
+comuns criadas pelo administrador; eles entram na API com token e só podem
+consultar ou alterar os próprios pedidos. O catálogo pode ser consultado por
+todos, mas só usuários da equipe podem alterá-lo. Se existir, a conta chamada
+`cliente` será excluída; crie contas individuais para clientes que usarão a API.
+O comando exige `DEBUG=True`, não deve ser executado em produção e redefine a
+senha de `gabriel` sempre que for executado. Se a conta `cliente` tiver dados
+vinculados protegidos, o comando interrompe a exclusão para preservar esses
+registros.
 
 Opcionalmente, carregue os dados demonstrativos do cardápio:
 
@@ -110,7 +112,7 @@ rodando no próprio computador. As contas são criadas pelo comando
 | `pip freeze > requirements.txt` | Salva no arquivo as versões das bibliotecas instaladas no ambiente ativo. Use com cuidado: também pode incluir pacotes que não são dependências diretas do projeto. |
 | `python manage.py makemigrations` | Cria arquivos de migração a partir de mudanças nos modelos. |
 | `python manage.py migrate` | Aplica as migrações e cria ou atualiza as tabelas no banco de dados. |
-| `python manage.py createsuperuser` | Cria manualmente uma conta de superusuário do Django. Neste projeto, use `python manage.py configurar_usuarios` para configurar as contas `gabriel` e `cliente`. |
+| `python manage.py createsuperuser` | Cria manualmente uma conta de superusuário do Django. Neste projeto, use `python manage.py configurar_usuarios` para configurar o administrador `gabriel`. |
 | `python manage.py runserver` | Inicia o servidor de desenvolvimento, normalmente em `http://127.0.0.1:8000/`. |
 | `python manage.py dumpdata catalogo --indent 2 > catalogo.json` | Exporta os registros do app `catalogo` para um arquivo JSON formatado. |
 | `python manage.py loaddata catalogo.json` | Importa dados de um arquivo JSON para o banco. Se os registros já existirem, IDs ou restrições podem causar conflitos. |
@@ -139,7 +141,7 @@ atual. O segundo cria um app Django. Aqui, o app existente é `catalogo`, não
 | `catalogo/serializers.py` | Converte models para JSON e valida dados recebidos pela API, inclusive preço e código IBGE. |
 | `catalogo/views.py` | Implementa os viewsets CRUD, filtros, busca, lista de produtos por categoria e endpoint de municípios. |
 | `catalogo/admin.py` | Registra e personaliza os models no Django Admin, com filtros, edição em linha e ação em lote de disponibilidade. |
-| `catalogo/management/commands/configurar_usuarios.py` | Cria o administrador de acesso total e configura as permissões da conta cliente no Admin. |
+| `catalogo/management/commands/configurar_usuarios.py` | Cria o administrador de acesso total e exclui a conta `cliente` antiga, se não houver dados protegidos vinculados. |
 | `catalogo/templates/catalogo/home.html` | Exibe as tabelas públicas de categorias, produtos disponíveis e áreas de entrega na página inicial. |
 | `catalogo/ibge.py` | Consulta o IBGE com `requests`, timeout e cache; simplifica a resposta e verifica códigos de município. |
 | `catalogo/migrations/` | Guarda as migrações que criam e alteram a estrutura do banco. |
@@ -162,12 +164,12 @@ atual. O segundo cria um app Django. Aqui, o app existente é `catalogo`, não
 - **PATCH:** atualiza parcialmente um registro.
 - **DELETE:** remove um registro.
 
-As listagens são paginadas em até 10 itens por página. A leitura do cardápio é
-pública; criação, atualização e exclusão exigem autenticação por sessão ou
-token. A conta `cliente` pode gerenciar categorias, nomes, produtos, pedidos e
-áreas de entrega no Django Admin, mas não pode usar os endpoints da API nem
-obter token. A conta `gabriel` tem acesso total ao Admin e à API. O token é
-enviado no cabeçalho
+As listagens do cardápio são públicas; alterações de categorias, produtos,
+nomes e áreas de entrega são restritas a usuários da equipe. Pedidos exigem
+autenticação por sessão ou token: cada cliente só lista, consulta, altera ou
+exclui pedidos associados à própria conta. O cliente não pode alterar o status;
+essa ação fica com a equipe. A conta `gabriel` tem acesso total ao Admin e à
+API. O token é enviado no cabeçalho
 `Authorization: Token <token>`.
 
 Para obter um token, envie `POST /api/token/` com as credenciais de uma conta
@@ -206,6 +208,13 @@ Resposta:
 | `/api/pedidos/{id}/` | GET, PUT, PATCH, DELETE | Consulta pedido próprio; funcionários podem alterar ou excluir pedidos. |
 | `/api/municipios/?uf=PE` | GET | Consulta municípios de uma UF no IBGE e retorna o total. |
 | `/api/token/` | POST | Valida usuário e senha e retorna um token de autenticação. |
+
+Clientes comuns não acessam `/admin/`; esse painel requer uma conta da equipe.
+As alterações do catálogo também são reservadas à equipe. No endpoint de
+pedidos, cada cliente só recebe os pedidos ligados à própria conta: tentar
+consultar, alterar ou excluir o pedido de outra pessoa retorna `404`. Ao criar
+um pedido, a API define o proprietário pelo usuário autenticado e ignora
+qualquer `usuario` enviado no corpo.
 
 Parâmetros de consulta para produtos:
 
@@ -313,8 +322,10 @@ entrega previamente cadastrada:
 O preço dos produtos e a taxa de entrega são obtidos do banco no momento da
 criação; o cliente não pode informar esses valores. A resposta inclui os itens,
 subtotal de cada item, total e status inicial `pendente`. Cada cliente consulta
-apenas os próprios pedidos. A equipe autenticada como funcionário pode consultar
-todos, atualizar status e gerenciar pedidos.
+e altera apenas os próprios pedidos. A view filtra também as consultas por ID,
+de modo que um pedido de outra conta não fica visível ao cliente. A equipe
+autenticada como funcionário pode consultar todos, atualizar status e gerenciar
+pedidos.
 
 Exemplo resumido de resposta:
 
@@ -445,10 +456,10 @@ Pernambuco. Abaixo estão os dois primeiros itens retornados:
 ## Django Admin
 
 Entre em http://127.0.0.1:8000/admin/ com `gabriel` para gerenciar todos os
-dados. A conta `cliente` pode criar, consultar, alterar e excluir categorias,
-nomes, produtos, pedidos e áreas de entrega; usuários ficam disponíveis somente
-para consulta/seleção. O cliente não pode acessar a API. O cabeçalho do
-painel foi personalizado para “Administração da Lanchonete”.
+dados. Clientes usam os endpoints da API com suas contas comuns; eles não têm
+acesso ao Django Admin, não alteram o catálogo e só podem operar sobre os
+próprios pedidos. O cabeçalho do painel foi personalizado para
+“Administração da Lanchonete”.
 
 - Categorias e produtos podem ser gerenciados no Admin.
 - Produtos podem ser editados dentro da tela da categoria usando

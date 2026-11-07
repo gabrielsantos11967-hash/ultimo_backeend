@@ -10,17 +10,10 @@ from .ibge import (
     codigo_municipio_existe,
 )
 from .models import AreaEntrega, Categoria, Nome, Pedido, PedidoItem, Produto
-from .permissions import is_cliente_admin
 
 
 class ApiTokenSerializer(AuthTokenSerializer):
-    def validate(self, attrs):
-        validated_data = super().validate(attrs)
-        if is_cliente_admin(validated_data["user"]):
-            raise serializers.ValidationError(
-                "A conta cliente não tem permissão para acessar a API."
-            )
-        return validated_data
+    pass
 
 
 class IBGEUnavailableAPIException(APIException):

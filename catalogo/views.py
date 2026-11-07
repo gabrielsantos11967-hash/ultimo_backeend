@@ -4,7 +4,7 @@ from rest_framework import serializers, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.decorators import action
 from rest_framework.filters import SearchFilter
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.views import ObtainAuthToken
 
@@ -23,7 +23,6 @@ from .serializers import (
     ProdutoSerializer,
     ApiTokenSerializer,
 )
-from .permissions import ClienteSemAcessoApi
 
 
 def home(request):
@@ -167,10 +166,3 @@ class PedidoViewSet(viewsets.ModelViewSet):
         if self.request.user.is_staff:
             return queryset
         return queryset.filter(usuario=self.request.user)
-
-    def get_permissions(self):
-        if self.action in {"update", "partial_update", "destroy"}:
-            permission_classes = [ClienteSemAcessoApi, IsAdminUser]
-        else:
-            permission_classes = [ClienteSemAcessoApi, IsAuthenticated]
-        return [permission() for permission in permission_classes]

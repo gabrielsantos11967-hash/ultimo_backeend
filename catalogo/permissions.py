@@ -1,18 +1,6 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
-CLIENTE_ADMIN_GROUP = "cliente_admin"
-
-
-def is_cliente_admin(user):
-    return (
-        user.is_authenticated
-        and user.groups.filter(name=CLIENTE_ADMIN_GROUP).exists()
-    )
-
-
-class ClienteSemAcessoApi(BasePermission):
-    message = "A conta cliente não tem permissão para acessar a API."
-
+class IsStaffOrReadOnly(BasePermission):
     def has_permission(self, request, view):
-        return not is_cliente_admin(request.user)
+        return request.method in SAFE_METHODS or request.user.is_staff
